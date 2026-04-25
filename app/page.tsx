@@ -278,7 +278,7 @@ export default function Home() {
                   <button
                     onClick={() => {
                       const text = `I finally understood: "${confusion.slice(0, 100)}${confusion.length > 100 ? "..." : ""}"`;
-                      const url = currentSlug ? `${window.location.origin}/explain/${currentSlug}` : window.location.origin;
+                      const url = currentSlug ? `${(process.env.NEXT_PUBLIC_SITE_URL || "https://nowiget.vercel.app")}/explain/${currentSlug}` : (process.env.NEXT_PUBLIC_SITE_URL || "https://nowiget.vercel.app");
                       window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, "_blank");
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border border-border/50 text-secondary hover:text-foreground hover:border-border transition-colors cursor-pointer"
@@ -289,7 +289,7 @@ export default function Home() {
                   {/* WhatsApp */}
                   <button
                     onClick={() => {
-                      const text = `I finally understood: "${confusion.slice(0, 100)}${confusion.length > 100 ? "..." : ""}"\n\nCheck it out: ${currentSlug ? `${window.location.origin}/explain/${currentSlug}` : window.location.origin}`;
+                      const text = `I finally understood: "${confusion.slice(0, 100)}${confusion.length > 100 ? "..." : ""}"\n\nCheck it out: ${currentSlug ? `${(process.env.NEXT_PUBLIC_SITE_URL || "https://nowiget.vercel.app")}/explain/${currentSlug}` : (process.env.NEXT_PUBLIC_SITE_URL || "https://nowiget.vercel.app")}`;
                       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border border-border/50 text-secondary hover:text-foreground hover:border-border transition-colors cursor-pointer"
@@ -300,7 +300,7 @@ export default function Home() {
                   {/* Copy Link */}
                   <button
                     onClick={() => {
-                      const url = currentSlug ? `${window.location.origin}/explain/${currentSlug}` : window.location.origin;
+                      const url = currentSlug ? `${(process.env.NEXT_PUBLIC_SITE_URL || "https://nowiget.vercel.app")}/explain/${currentSlug}` : (process.env.NEXT_PUBLIC_SITE_URL || "https://nowiget.vercel.app");
                       navigator.clipboard.writeText(url);
                       setLinkCopied(true);
                       setTimeout(() => setLinkCopied(false), 2000);
@@ -317,7 +317,7 @@ export default function Home() {
                         navigator.share({
                           title: "NowIGet — I finally understood this",
                           text: `"${confusion.slice(0, 100)}${confusion.length > 100 ? "..." : ""}"`,
-                          url: currentSlug ? `${window.location.origin}/explain/${currentSlug}` : window.location.origin,
+                          url: currentSlug ? `${(process.env.NEXT_PUBLIC_SITE_URL || "https://nowiget.vercel.app")}/explain/${currentSlug}` : (process.env.NEXT_PUBLIC_SITE_URL || "https://nowiget.vercel.app"),
                         });
                       }
                     }}

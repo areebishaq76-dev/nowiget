@@ -5,7 +5,8 @@ import { useState } from "react";
 export default function ShareButtons({ confusion, slug }: { confusion: string; slug: string }) {
   const [copied, setCopied] = useState(false);
 
-  const url = typeof window !== "undefined" ? `${window.location.origin}/explain/${slug}` : "";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://nowiget.vercel.app";
+  const url = `${baseUrl}/explain/${slug}`;
   const shortConfusion = confusion.slice(0, 100) + (confusion.length > 100 ? "..." : "");
 
   return (
