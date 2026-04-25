@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Please describe your confusion." }, { status: 400 });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const prompt = `${SYSTEM_PROMPT}
 
