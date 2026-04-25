@@ -11,25 +11,19 @@ export async function POST(request: NextRequest) {
 
     const column = helpful ? "helpful_yes" : "helpful_no";
 
-    const { error } = await supabase.rpc("increment_feedback", {
-      row_slug: slug,
-      column_name: column,
-    });
+    // Get current value
+    const { data: current } = await supabase
+      .from("explanations")
+      .select("helpful_yes, helpful_no")
+      .eq("slug", slug)
+      .single();
 
-    if (error) {
-      // Fallback: direct update if RPC doesn't exist yet
-      const { data: current } = await supabase
+    if (current) {
+      const currentValue = helpful ? current.helpful_yes : current.helpful_no;
+      await supabase
         .from("explanations")
-        .select(column)
-        .eq("slug", slug)
-        .single();
-
-      if (current) {
-        await supabase
-          .from("explanations")
-          .update({ [column]: (current[column] as number) + 1 })
-          .eq("slug", slug);
-      }
+        .update({ [column]: (currentValue as number) + 1 })
+        .eq("slug", slug);
     }
 
     return NextResponse.json({ success: true });

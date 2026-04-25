@@ -32,6 +32,26 @@ function generateSlug(confusion: string): string {
     .slice(0, 80);
 }
 
+async function classifyConfusion(model: ReturnType<typeof genAI.getGenerativeModel>, confusion: string): Promise<boolean> {
+  try {
+    const result = await model.generateContent(
+      `Classify this question as either "public" or "private".
+
+"public" = general knowledge, concepts, science, history, how things work, news, technology — useful for anyone to read.
+"private" = personal situations, relationships, health symptoms, private feelings, specific people, personal finances — only relevant to the person asking.
+
+Question: "${confusion}"
+
+Reply with ONLY the word "public" or "private". Nothing else.`
+    );
+    const answer = result.response.text().trim().toLowerCase();
+    return answer === "public";
+  } catch {
+    // If classification fails, default to public
+    return true;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { confusion, familiarity } = await request.json();
@@ -42,35 +62,43 @@ export async function POST(request: NextRequest) {
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    const prompt = `${SYSTEM_PROMPT}
+    // Generate explanation and classify in parallel
+    const [explanationResult, isPublic] = await Promise.all([
+      model.generateContent(`${SYSTEM_PROMPT}
 
 The user's confusion:
 "${confusion.trim()}"
 
 Their familiarity level: ${familiarity || "some"}
 
-Now resolve their confusion clearly:`;
+Now resolve their confusion clearly:`),
+      classifyConfusion(model, confusion.trim()),
+    ]);
 
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
+    const text = explanationResult.response.text();
+    let slug = "";
 
-    // Save to Supabase
-    const slug = generateSlug(confusion.trim());
+    // Only save to database if the confusion is public/general knowledge
+    if (isPublic) {
+      slug = generateSlug(confusion.trim());
 
-    const { error: dbError } = await supabase.from("explanations").insert({
-      slug,
-      confusion: confusion.trim(),
-      familiarity: familiarity || "some",
-      explanation: text,
-    });
+      const { error: dbError } = await supabase.from("explanations").insert({
+        slug,
+        confusion: confusion.trim(),
+        familiarity: familiarity || "some",
+        explanation: text,
+      });
 
-    if (dbError) {
-      console.error("Supabase insert error:", dbError);
-      // Still return the explanation even if save fails
+      if (dbError) {
+        console.error("Supabase insert error:", dbError);
+      }
     }
 
-    return NextResponse.json({ explanation: text, slug });
+    return NextResponse.json({
+      explanation: text,
+      slug: isPublic ? slug : "",
+      isPublic,
+    });
   } catch (error: unknown) {
     console.error("Gemini API error:", error);
     const raw = error instanceof Error ? error.message : "";
