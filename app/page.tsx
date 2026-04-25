@@ -19,6 +19,8 @@ export default function Home() {
   const [showFamiliarity, setShowFamiliarity] = useState(false);
   const [explanation, setExplanation] = useState("");
   const [error, setError] = useState("");
+  const [currentSlug, setCurrentSlug] = useState("");
+  const [feedbackGiven, setFeedbackGiven] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const answerRef = useRef<HTMLDivElement>(null);
 
@@ -52,6 +54,8 @@ export default function Home() {
         setError(data.error || "Something went wrong. Please try again.");
       } else {
         setExplanation(data.explanation);
+        setCurrentSlug(data.slug || "");
+        setFeedbackGiven(false);
         setTimeout(() => {
           answerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
         }, 100);
@@ -221,10 +225,58 @@ export default function Home() {
                 {explanation}
               </div>
               <div className="mt-6 pt-5 border-t border-border/30 flex items-center gap-3">
-                <span className="text-xs text-secondary/60">Did this help?</span>
-                <button className="px-3 py-1.5 rounded-full text-xs border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer">Yes</button>
-                <button className="px-3 py-1.5 rounded-full text-xs border border-red-200 text-red-500 hover:bg-red-50 transition-colors cursor-pointer">No</button>
+                {feedbackGiven ? (
+                  <span className="text-xs text-emerald-600">Thanks for your feedback!</span>
+                ) : (
+                  <>
+                    <span className="text-xs text-secondary/60">Did this help?</span>
+                    <button
+                      onClick={async () => {
+                        setFeedbackGiven(true);
+                        await fetch("/api/feedback", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ slug: currentSlug, helpful: true }),
+                        });
+                      }}
+                      className="px-3 py-1.5 rounded-full text-xs border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setFeedbackGiven(true);
+                        await fetch("/api/feedback", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ slug: currentSlug, helpful: false }),
+                        });
+                      }}
+                      className="px-3 py-1.5 rounded-full text-xs border border-red-200 text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                    >
+                      No
+                    </button>
+                  </>
+                )}
               </div>
+              {currentSlug && (
+                <div className="mt-4 pt-4 border-t border-border/30 flex items-center justify-between">
+                  <a
+                    href={`/explain/${currentSlug}`}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Permanent link to this explanation →
+                  </a>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/explain/${currentSlug}`);
+                    }}
+                    className="text-xs text-secondary/60 hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    Copy link
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

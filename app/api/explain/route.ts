@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -20,6 +21,16 @@ Familiarity levels:
 - "beginner": Assume they know nothing. Use the simplest possible language and analogies.
 - "some": They have basic understanding. Skip the absolute basics but still keep it simple.
 - "comfortable": They understand the topic broadly. Focus on the specific nuance they're confused about.`;
+
+function generateSlug(confusion: string): string {
+  return confusion
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,7 +55,22 @@ Now resolve their confusion clearly:`;
     const response = result.response;
     const text = response.text();
 
-    return NextResponse.json({ explanation: text });
+    // Save to Supabase
+    const slug = generateSlug(confusion.trim());
+
+    const { error: dbError } = await supabase.from("explanations").insert({
+      slug,
+      confusion: confusion.trim(),
+      familiarity: familiarity || "some",
+      explanation: text,
+    });
+
+    if (dbError) {
+      console.error("Supabase insert error:", dbError);
+      // Still return the explanation even if save fails
+    }
+
+    return NextResponse.json({ explanation: text, slug });
   } catch (error: unknown) {
     console.error("Gemini API error:", error);
     const raw = error instanceof Error ? error.message : "";
