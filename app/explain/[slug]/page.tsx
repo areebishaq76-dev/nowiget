@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import ShareButtons from "./share-buttons";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -100,6 +101,9 @@ export default async function ExplainPage({ params }: Props) {
               {explanation.explanation}
             </div>
           </div>
+
+          {/* Share */}
+          <ShareButtons confusion={explanation.confusion} slug={slug} />
 
           {/* CTA */}
           <div className="mt-12 text-center">
