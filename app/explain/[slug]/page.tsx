@@ -28,6 +28,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const description = explanation.explanation.slice(0, 160) + "...";
 
+  const ogImage = `/api/og?confusion=${encodeURIComponent(explanation.confusion)}&explanation=${encodeURIComponent(explanation.explanation.slice(0, 200))}`;
+
   return {
     title: `${explanation.confusion} — NowIGet`,
     description,
@@ -35,6 +37,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: `${explanation.confusion} — NowIGet`,
       description,
       type: "article",
+      images: [{ url: ogImage, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${explanation.confusion} — NowIGet`,
+      description,
+      images: [ogImage],
     },
   };
 }
