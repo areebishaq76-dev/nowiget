@@ -22,6 +22,8 @@ export default function Home() {
   const [currentSlug, setCurrentSlug] = useState("");
   const [feedbackGiven, setFeedbackGiven] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [recentQuestions, setRecentQuestions] = useState<{ text: string; slug: string }[]>([]);
+  const [conversationHistory, setConversationHistory] = useState<{ question: string; answer: string }[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const answerRef = useRef<HTMLDivElement>(null);
   const familiarityRef = useRef<HTMLDivElement>(null);
@@ -30,6 +32,14 @@ export default function Home() {
     document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [mobileMenuOpen]);
+
+  // Load recent questions from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("nowiget_recent");
+      if (stored) setRecentQuestions(JSON.parse(stored));
+    } catch { /* ignore */ }
+  }, []);
 
   const handleSubmit = () => {
     if (!confusion.trim() || isLoading) return;
@@ -50,7 +60,7 @@ export default function Home() {
       const res = await fetch("/api/explain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confusion: confusion.trim(), familiarity: level }),
+        body: JSON.stringify({ confusion: confusion.trim(), familiarity: level, history: conversationHistory.slice(-3) }),
       });
 
       const data = await res.json();
@@ -61,6 +71,18 @@ export default function Home() {
         setExplanation(data.explanation);
         setCurrentSlug(data.slug || "");
         setFeedbackGiven(false);
+        setConversationHistory((prev) => [...prev, { question: confusion.trim(), answer: data.explanation }].slice(-5));
+        // Save to recent questions in localStorage
+        try {
+          const stored = localStorage.getItem("nowiget_recent");
+          const prev: { text: string; slug: string }[] = stored ? JSON.parse(stored) : [];
+          const updated = [
+            { text: confusion.trim(), slug: data.slug || "" },
+            ...prev.filter((q) => q.text !== confusion.trim()),
+          ].slice(0, 5);
+          localStorage.setItem("nowiget_recent", JSON.stringify(updated));
+          setRecentQuestions(updated);
+        } catch { /* ignore */ }
         setTimeout(() => {
           answerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
         }, 100);
@@ -134,8 +156,8 @@ export default function Home() {
           </h1>
 
           <p className="mt-6 text-lg md:text-xl text-secondary max-w-xl leading-relaxed mx-auto">
-            Describe exactly what&apos;s confusing you. Get a clear, human
-            explanation — like a smart friend texting back.
+            Describe exactly what&apos;s confusing you — in your own words.
+            Get a clear, human explanation. No jargon. No textbooks. Just clarity.
           </p>
         </div>
 
@@ -145,7 +167,7 @@ export default function Home() {
               ref={textareaRef}
               value={confusion}
               onChange={(e) => setConfusion(e.target.value)}
-              placeholder="Ask anything — a question, a confusion, advice, how something works..."
+              placeholder="What are you confused about? Describe it in your own words..."
               rows={4}
               className="w-full min-h-[130px] px-5 py-4 text-base md:text-[17px] rounded-xl bg-transparent text-foreground placeholder:text-secondary/45 resize-none transition-all duration-200 focus:outline-none border-0 leading-relaxed"
             />
@@ -334,8 +356,76 @@ export default function Home() {
               </div>
             </div>
           )}
+
+          {/* Follow-up input */}
+          {explanation && !isLoading && (
+            <div className="mt-4 bg-card-bg rounded-2xl shadow-xl shadow-foreground/[0.04] border border-border/40 p-1.5">
+              <textarea
+                value={confusion}
+                onChange={(e) => setConfusion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey && confusion.trim()) {
+                    e.preventDefault();
+                    handleSubmit();
+                  }
+                }}
+                placeholder="Ask a follow-up question..."
+                rows={2}
+                className="w-full px-5 py-3 text-base rounded-xl bg-transparent text-foreground placeholder:text-secondary/45 resize-none focus:outline-none border-0 leading-relaxed"
+              />
+              <div className="flex items-center justify-between px-3 pb-2 pt-1">
+                <p className="text-xs text-secondary/40 hidden sm:block">Press Enter to ask</p>
+                <button
+                  onClick={handleSubmit}
+                  disabled={!confusion.trim()}
+                  className="w-full sm:w-auto px-6 h-[38px] rounded-xl bg-primary text-white font-semibold text-sm transition-all duration-200 hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer"
+                >
+                  Ask follow-up →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </section>
+
+      {/* ─── Recent Questions ─── */}
+      {recentQuestions.length > 0 && (
+        <section className="py-10 px-6 bg-primary-light/20">
+          <div className="max-w-[700px] mx-auto">
+            <p className="text-xs font-semibold text-secondary/50 uppercase tracking-wide mb-4">Your recent questions</p>
+            <div className="flex flex-col gap-2">
+              {recentQuestions.map((q, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setConfusion(q.text);
+                    setShowFamiliarity(false);
+                    setExplanation("");
+                    setError("");
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                    setTimeout(() => textareaRef.current?.focus(), 400);
+                  }}
+                  className="flex items-center justify-between gap-4 w-full text-left px-5 py-3.5 rounded-xl bg-card-bg border border-border/40 hover:border-primary/30 hover:shadow-sm transition-all duration-200 group cursor-pointer"
+                >
+                  <span className="text-sm text-foreground truncate">{q.text}</span>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    {q.slug && (
+                      <a
+                        href={`/explain/${q.slug}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs text-primary hover:underline hidden sm:block"
+                      >
+                        View page →
+                      </a>
+                    )}
+                    <span className="text-secondary/30 group-hover:text-primary transition-colors text-sm">↑</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ─── Trust Bar ─── */}
       <section className="py-12 px-6 border-y border-border/40">

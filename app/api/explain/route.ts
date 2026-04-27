@@ -1,7 +1,9 @@
+import Groq from "groq-sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 const SYSTEM_PROMPT = `You are NowIGet — a clarity engine. Your job is to give a clear, helpful, human answer to anything a person asks or is confused about. This includes questions, confusions, how-to requests, opinion questions, advice, comparisons, recommendations — anything.
@@ -34,7 +36,51 @@ function generateSlug(confusion: string): string {
     .slice(0, 80);
 }
 
-// Classify without a second API call — keyword-based heuristic
+function needsLiveData(text: string): boolean {
+  const t = text.toLowerCase();
+  const signals = [
+    "current", "latest", "today", "now", "right now", "this year", "this week",
+    "this month", "recent", "recently", "live", "ongoing", "situation",
+    "what happened", "who won", "who is winning", "what is the score",
+    "2024", "2025", "2026", "2027",
+    "news", "update", "result", "score", "standing", "fixture", "schedule",
+    "election", "war", "conflict", "crisis", "protest", "attack",
+    "psl", "ipl", "world cup", "premier league", "champions league",
+    "nba", "nfl", "ufc", "cricket", "match", "tournament", "series",
+    "price of", "stock price", "exchange rate", "bitcoin price", "crypto price",
+    "weather", "forecast", "pakistan super league", "super league",
+  ];
+  return signals.some((s) => t.includes(s));
+}
+
+async function fetchLiveContext(query: string): Promise<string> {
+  try {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: process.env.TAVILY_API_KEY,
+        query,
+        search_depth: "basic",
+        max_results: 4,
+        include_answer: true,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) return "";
+    const lines: string[] = [];
+    if (data.answer) lines.push(`Summary: ${data.answer}`);
+    if (data.results) {
+      data.results.slice(0, 3).forEach((r: { title: string; content: string }) => {
+        lines.push(`${r.title}: ${r.content.slice(0, 300)}`);
+      });
+    }
+    return lines.join("\n\n");
+  } catch {
+    return "";
+  }
+}
+
 function classifyConfusion(confusion: string): boolean {
   const text = confusion.toLowerCase();
   const privateSignals = [
@@ -50,60 +96,91 @@ function classifyConfusion(confusion: string): boolean {
   return !privateSignals.some((signal) => text.includes(signal));
 }
 
+// Generate answer using Groq (primary)
+async function generateWithGroq(prompt: string): Promise<string> {
+  const response = await groq.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: 1024,
+    temperature: 0.7,
+  });
+  return response.choices[0]?.message?.content || "";
+}
+
+// Generate answer using Gemini (fallback)
+async function generateWithGemini(prompt: string): Promise<string> {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const result = await model.generateContent(prompt);
+  return result.response.text();
+}
+
+// Try Groq first, fall back to Gemini if Groq fails
+async function generateAnswer(prompt: string): Promise<string> {
+  try {
+    const text = await generateWithGroq(prompt);
+    if (text && text.trim().length > 0) return text;
+    throw new Error("Empty response from Groq");
+  } catch (e) {
+    console.log("[NowIGet] Groq failed, trying Gemini fallback:", e instanceof Error ? e.message.slice(0, 80) : "");
+    const text = await generateWithGemini(prompt);
+    if (text && text.trim().length > 0) return text;
+    throw new Error("Both Groq and Gemini failed");
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { confusion, familiarity } = await request.json();
+    const { confusion, familiarity, history } = await request.json();
 
     if (!confusion || typeof confusion !== "string" || confusion.trim().length === 0) {
       return NextResponse.json({ error: "Please describe your confusion." }, { status: 400 });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const conversationContext = Array.isArray(history) && history.length > 0
+      ? history.map((h: { question: string; answer: string }) =>
+          `Previous question: "${h.question}"\nPrevious answer: "${h.answer.slice(0, 300)}..."`
+        ).join("\n\n")
+      : "";
+
     const isPublic = classifyConfusion(confusion.trim());
+    const liveContext = needsLiveData(confusion.trim())
+      ? await fetchLiveContext(confusion.trim())
+      : "";
 
-    const explanationResult = await model.generateContent(`${SYSTEM_PROMPT}
+    const historySection = conversationContext
+      ? `\n\nConversation so far (for context — user may be asking a follow-up):\n${conversationContext}`
+      : "";
 
-The user's confusion:
-"${confusion.trim()}"
+    const prompt = liveContext
+      ? `${SYSTEM_PROMPT}${historySection}
 
-Their familiarity level: ${familiarity || "some"}
+Today's date: ${new Date().toDateString()}
+Fresh data from the web — use if relevant, ignore if not:
+${liveContext}
 
-Now resolve their confusion clearly:`);
+User's question: "${confusion.trim()}"
+Familiarity level: ${familiarity || "some"}
 
-    let text = "";
-    try {
-      text = explanationResult.response.text();
-    } catch {
-      // Gemini blocked the response (safety filter)
-      return NextResponse.json(
-        { error: "We weren't able to generate an explanation for that. Try rephrasing what specifically confuses you." },
-        { status: 422 }
-      );
-    }
+Answer clearly:`
+      : `${SYSTEM_PROMPT}${historySection}
 
-    if (!text || text.trim().length === 0) {
-      return NextResponse.json(
-        { error: "We weren't able to generate an explanation for that. Try rephrasing what specifically confuses you." },
-        { status: 422 }
-      );
-    }
+User's question: "${confusion.trim()}"
+Familiarity level: ${familiarity || "some"}
+
+Answer clearly:`;
+
+    const text = await generateAnswer(prompt);
 
     let slug = "";
-
-    // Only save to database if the confusion is public/general knowledge
     if (isPublic) {
       slug = generateSlug(confusion.trim());
-
       const { error: dbError } = await supabase.from("explanations").insert({
         slug,
         confusion: confusion.trim(),
         familiarity: familiarity || "some",
         explanation: text,
       });
-
-      if (dbError) {
-        console.error("Supabase insert error:", dbError);
-      }
+      if (dbError) console.error("Supabase insert error:", dbError);
     }
 
     return NextResponse.json({
@@ -111,26 +188,27 @@ Now resolve their confusion clearly:`);
       slug: isPublic ? slug : "",
       isPublic,
     });
+
   } catch (error: unknown) {
-    console.error("Gemini API error:", error);
+    console.error("API error:", error);
     const raw = error instanceof Error ? error.message : "";
 
-    if (raw.includes("429") || raw.includes("quota") || raw.includes("Too Many Requests")) {
+    if (raw.includes("429") || raw.includes("quota") || raw.includes("Too Many Requests") || raw.includes("rate_limit")) {
       return NextResponse.json(
         { error: "We're getting a lot of questions right now. Please wait a few seconds and try again." },
         { status: 429 }
       );
     }
 
-    if (raw.includes("API_KEY_INVALID") || raw.includes("API key not valid")) {
+    if (raw.includes("503") || raw.includes("overloaded") || raw.includes("Service Unavailable")) {
       return NextResponse.json(
-        { error: "Service temporarily unavailable. Please try again later." },
-        { status: 500 }
+        { error: "The AI is overloaded right now. Please wait a few seconds and try again." },
+        { status: 503 }
       );
     }
 
     return NextResponse.json(
-      { error: "Hmm, we couldn't generate a clear explanation for that. Try rephrasing your confusion — describe what specifically you don't understand." },
+      { error: "Something went wrong. Please try again." },
       { status: 500 }
     );
   }
