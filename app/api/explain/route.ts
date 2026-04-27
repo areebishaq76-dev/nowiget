@@ -68,7 +68,24 @@ Their familiarity level: ${familiarity || "some"}
 
 Now resolve their confusion clearly:`);
 
-    const text = explanationResult.response.text();
+    let text = "";
+    try {
+      text = explanationResult.response.text();
+    } catch {
+      // Gemini blocked the response (safety filter)
+      return NextResponse.json(
+        { error: "We weren't able to generate an explanation for that. Try rephrasing what specifically confuses you." },
+        { status: 422 }
+      );
+    }
+
+    if (!text || text.trim().length === 0) {
+      return NextResponse.json(
+        { error: "We weren't able to generate an explanation for that. Try rephrasing what specifically confuses you." },
+        { status: 422 }
+      );
+    }
+
     let slug = "";
 
     // Only save to database if the confusion is public/general knowledge
