@@ -24,6 +24,7 @@ export default function Home() {
   const [linkCopied, setLinkCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const answerRef = useRef<HTMLDivElement>(null);
+  const familiarityRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
@@ -35,6 +36,9 @@ export default function Home() {
     setShowFamiliarity(true);
     setExplanation("");
     setError("");
+    setTimeout(() => {
+      familiarityRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   };
 
   const handleFamiliaritySelect = async (level: string) => {
@@ -145,14 +149,14 @@ export default function Home() {
               rows={4}
               className="w-full min-h-[130px] px-5 py-4 text-base md:text-[17px] rounded-xl bg-transparent text-foreground placeholder:text-secondary/45 resize-none transition-all duration-200 focus:outline-none border-0 leading-relaxed"
             />
-            <div className="flex items-center justify-between px-3 pb-2 pt-1">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-3 pb-2 pt-1 gap-2">
               <p className="text-xs text-secondary/40 hidden sm:block">
                 Free · No sign-up required
               </p>
               <button
                 onClick={handleSubmit}
                 disabled={!confusion.trim() || isLoading}
-                className="px-8 h-[46px] rounded-xl bg-primary text-white font-semibold text-sm transition-all duration-200 hover:bg-primary-hover hover:shadow-lg hover:shadow-primary/25 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto px-8 h-[46px] rounded-xl bg-primary text-white font-semibold text-sm transition-all duration-200 hover:bg-primary-hover hover:shadow-lg hover:shadow-primary/25 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none flex items-center justify-center gap-2 cursor-pointer"
               >
                 {isLoading ? (
                   <>
@@ -171,7 +175,7 @@ export default function Home() {
 
           {/* Familiarity picker */}
           {showFamiliarity && (
-            <div className="mt-6 bg-card-bg rounded-2xl shadow-xl shadow-foreground/[0.04] border border-border/40 p-6 text-left">
+            <div ref={familiarityRef} className="mt-6 bg-card-bg rounded-2xl shadow-xl shadow-foreground/[0.04] border border-border/40 p-6 text-left scroll-mt-24">
               <p className="text-foreground font-semibold text-[15px] mb-1">
                 One quick question before we answer:
               </p>
