@@ -337,20 +337,47 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── Stats Bar ─── */}
-      <section className="py-16 px-6 border-y border-border/40">
-        <div className="max-w-[1000px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 md:gap-4">
+      {/* ─── Trust Bar ─── */}
+      <section className="py-12 px-6 border-y border-border/40">
+        <div className="max-w-[1000px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
-            { number: "10,000+", label: "Confusions cleared" },
-            { number: "120+", label: "Countries reached" },
-            { number: "4.9/5", label: "Clarity rating" },
-            { number: "< 10s", label: "Average answer time" },
-          ].map(({ number, label }) => (
-            <div key={label} className="text-center">
-              <p className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
-                {number}
-              </p>
-              <p className="mt-2 text-sm text-secondary/70">{label}</p>
+            {
+              icon: (
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              ),
+              title: "Powered by Google Gemini AI",
+              desc: "State-of-the-art AI, built by Google",
+            },
+            {
+              icon: (
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              ),
+              title: "No sign-up required",
+              desc: "Just ask — no account, no email",
+            },
+            {
+              icon: (
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              ),
+              title: "Answers in under 10 seconds",
+              desc: "No waiting, no loading screens",
+            },
+            {
+              icon: (
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              ),
+              title: "Private questions stay private",
+              desc: "Personal questions are never saved or indexed",
+            },
+          ].map(({ icon, title, desc }) => (
+            <div key={title} className="flex flex-col items-center text-center gap-3 px-4 py-6 rounded-2xl bg-card-bg border border-border/40 shadow-sm shadow-foreground/[0.02]">
+              <div className="w-10 h-10 rounded-full bg-primary/8 text-primary flex items-center justify-center flex-shrink-0">
+                {icon}
+              </div>
+              <div>
+                <p className="font-semibold text-foreground text-sm leading-snug">{title}</p>
+                <p className="mt-1 text-xs text-secondary/60 leading-relaxed">{desc}</p>
+              </div>
             </div>
           ))}
         </div>
