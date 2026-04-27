@@ -118,7 +118,7 @@ Now resolve their confusion clearly:`),
     }
 
     return NextResponse.json(
-      { error: "Something went wrong. Please try again." },
+      { error: "Hmm, we couldn't generate a clear explanation for that. Try rephrasing your confusion — describe what specifically you don't understand." },
       { status: 500 }
     );
   }
