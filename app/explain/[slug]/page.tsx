@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import ShareButtons from "./share-buttons";
 import ReportButton from "./report-button";
+import ViewCounter from "./view-counter";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -63,8 +64,28 @@ export default async function ExplainPage({ params }: Props) {
     comfortable: "Someone fairly comfortable",
   };
 
+  // Schema.org JSON-LD for Google featured snippets
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": explanation.confusion,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": explanation.explanation,
+        },
+      },
+    ],
+  };
+
   return (
     <div className="flex flex-col min-h-full">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-card-bg/90 backdrop-blur-md border-b border-border/50">
         <div className="max-w-[1200px] mx-auto px-6 flex items-center justify-between h-16">
@@ -91,9 +112,13 @@ export default async function ExplainPage({ params }: Props) {
             <h1 className="text-2xl md:text-3xl font-extrabold text-foreground leading-snug">
               &ldquo;{explanation.confusion}&rdquo;
             </h1>
-            <p className="mt-3 text-sm text-secondary/60">
-              Answered for: {familiarityLabels[explanation.familiarity] || "someone who knows a little"}
-            </p>
+            <div className="mt-3 flex items-center gap-3">
+              <p className="text-sm text-secondary/60">
+                Answered for: {familiarityLabels[explanation.familiarity] || "someone who knows a little"}
+              </p>
+              <span className="text-secondary/30">·</span>
+              <ViewCounter slug={slug} initialViews={explanation.views ?? 0} />
+            </div>
           </div>
 
           {/* The answer */}

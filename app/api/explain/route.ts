@@ -49,8 +49,28 @@ function needsLiveData(text: string): boolean {
     "nba", "nfl", "ufc", "cricket", "match", "tournament", "series",
     "price of", "stock price", "exchange rate", "bitcoin price", "crypto price",
     "weather", "forecast", "pakistan super league", "super league",
+    "time in", "what time", "current time", "time now", "time is it",
   ];
   return signals.some((s) => t.includes(s));
+}
+
+function getCurrentTimeContext(): string {
+  const now = new Date();
+  // Generate time for common timezones
+  const zones = [
+    { name: "Pakistan (PKT)", tz: "Asia/Karachi" },
+    { name: "Italy (CET/CEST)", tz: "Europe/Rome" },
+    { name: "UK (GMT/BST)", tz: "Europe/London" },
+    { name: "USA New York (ET)", tz: "America/New_York" },
+    { name: "USA Los Angeles (PT)", tz: "America/Los_Angeles" },
+    { name: "Dubai (GST)", tz: "Asia/Dubai" },
+    { name: "India (IST)", tz: "Asia/Kolkata" },
+    { name: "UTC", tz: "UTC" },
+  ];
+  const lines = zones.map((z) =>
+    `${z.name}: ${now.toLocaleString("en-US", { timeZone: z.tz, hour: "2-digit", minute: "2-digit", hour12: true, weekday: "long", month: "long", day: "numeric", year: "numeric" })}`
+  );
+  return `Current date and time around the world:\n${lines.join("\n")}`;
 }
 
 async function fetchLiveContext(query: string): Promise<string> {
@@ -151,10 +171,12 @@ export async function POST(request: NextRequest) {
       ? `\n\nConversation so far (for context — user may be asking a follow-up):\n${conversationContext}`
       : "";
 
+    const timeContext = getCurrentTimeContext();
+
     const prompt = liveContext
       ? `${SYSTEM_PROMPT}${historySection}
 
-Today's date: ${new Date().toDateString()}
+${timeContext}
 Fresh data from the web — use if relevant, ignore if not:
 ${liveContext}
 
@@ -163,6 +185,8 @@ Familiarity level: ${familiarity || "some"}
 
 Answer clearly:`
       : `${SYSTEM_PROMPT}${historySection}
+
+${timeContext}
 
 User's question: "${confusion.trim()}"
 Familiarity level: ${familiarity || "some"}
