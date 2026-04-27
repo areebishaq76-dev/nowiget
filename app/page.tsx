@@ -145,7 +145,7 @@ export default function Home() {
               ref={textareaRef}
               value={confusion}
               onChange={(e) => setConfusion(e.target.value)}
-              placeholder="What are you confused about? Describe it in your own words..."
+              placeholder="Ask anything — a question, a confusion, advice, how something works..."
               rows={4}
               className="w-full min-h-[130px] px-5 py-4 text-base md:text-[17px] rounded-xl bg-transparent text-foreground placeholder:text-secondary/45 resize-none transition-all duration-200 focus:outline-none border-0 leading-relaxed"
             />
