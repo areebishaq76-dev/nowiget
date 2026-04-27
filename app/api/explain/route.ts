@@ -32,24 +32,20 @@ function generateSlug(confusion: string): string {
     .slice(0, 80);
 }
 
-async function classifyConfusion(model: ReturnType<typeof genAI.getGenerativeModel>, confusion: string): Promise<boolean> {
-  try {
-    const result = await model.generateContent(
-      `Classify this question as either "public" or "private".
-
-"public" = general knowledge, concepts, science, history, how things work, news, technology — useful for anyone to read.
-"private" = personal situations, relationships, health symptoms, private feelings, specific people, personal finances — only relevant to the person asking.
-
-Question: "${confusion}"
-
-Reply with ONLY the word "public" or "private". Nothing else.`
-    );
-    const answer = result.response.text().trim().toLowerCase();
-    return answer === "public";
-  } catch {
-    // If classification fails, default to public
-    return true;
-  }
+// Classify without a second API call — keyword-based heuristic
+function classifyConfusion(confusion: string): boolean {
+  const text = confusion.toLowerCase();
+  const privateSignals = [
+    "my wife", "my husband", "my girlfriend", "my boyfriend", "my partner",
+    "my mom", "my dad", "my father", "my mother", "my sister", "my brother",
+    "my boss", "my coworker", "my friend", "my ex",
+    "my relationship", "my marriage", "my family",
+    "my salary", "my bank", "my account", "my loan", "my debt",
+    "my symptom", "my pain", "my diagnosis", "my doctor",
+    "i feel like", "i think i have", "am i normal", "is it normal that i",
+    "should i break up", "should i quit", "should i leave",
+  ];
+  return !privateSignals.some((signal) => text.includes(signal));
 }
 
 export async function POST(request: NextRequest) {
@@ -61,19 +57,16 @@ export async function POST(request: NextRequest) {
     }
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const isPublic = classifyConfusion(confusion.trim());
 
-    // Generate explanation and classify in parallel
-    const [explanationResult, isPublic] = await Promise.all([
-      model.generateContent(`${SYSTEM_PROMPT}
+    const explanationResult = await model.generateContent(`${SYSTEM_PROMPT}
 
 The user's confusion:
 "${confusion.trim()}"
 
 Their familiarity level: ${familiarity || "some"}
 
-Now resolve their confusion clearly:`),
-      classifyConfusion(model, confusion.trim()),
-    ]);
+Now resolve their confusion clearly:`);
 
     const text = explanationResult.response.text();
     let slug = "";
