@@ -156,6 +156,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Please describe your confusion." }, { status: 400 });
     }
 
+    if (confusion.trim().length > 600) {
+      return NextResponse.json({ error: "Your question is too long. Please keep it under 600 characters." }, { status: 400 });
+    }
+
+    const VALID_FAMILIARITY = ["beginner", "some", "comfortable"];
+    const safeFamiliarity = VALID_FAMILIARITY.includes(familiarity) ? familiarity : "some";
+
     const conversationContext = Array.isArray(history) && history.length > 0
       ? history.map((h: { question: string; answer: string }) =>
           `Previous question: "${h.question}"\nPrevious answer: "${h.answer.slice(0, 300)}..."`
@@ -181,7 +188,7 @@ Fresh data from the web — use if relevant, ignore if not:
 ${liveContext}
 
 User's question: "${confusion.trim()}"
-Familiarity level: ${familiarity || "some"}
+Familiarity level: ${safeFamiliarity}
 
 Answer clearly:`
       : `${SYSTEM_PROMPT}${historySection}
@@ -189,7 +196,7 @@ Answer clearly:`
 ${timeContext}
 
 User's question: "${confusion.trim()}"
-Familiarity level: ${familiarity || "some"}
+Familiarity level: ${safeFamiliarity}
 
 Answer clearly:`;
 
@@ -198,13 +205,17 @@ Answer clearly:`;
     let slug = "";
     if (isPublic) {
       slug = generateSlug(confusion.trim());
-      const { error: dbError } = await supabase.from("explanations").insert({
-        slug,
-        confusion: confusion.trim(),
-        familiarity: familiarity || "some",
-        explanation: text,
-      });
-      if (dbError) console.error("Supabase insert error:", dbError);
+      // Upsert to handle duplicate slugs gracefully
+      const { error: dbError } = await supabase.from("explanations").upsert(
+        {
+          slug,
+          confusion: confusion.trim(),
+          familiarity: safeFamiliarity,
+          explanation: text,
+        },
+        { onConflict: "slug", ignoreDuplicates: true }
+      );
+      if (dbError) console.error("Supabase upsert error:", dbError);
     }
 
     return NextResponse.json({

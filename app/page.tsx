@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import LiveFeed from "./components/live-feed";
 
 const EXAMPLE_CONFUSIONS = [
   "I keep hearing about inflation but don't understand why it's bad if my salary also goes up",
@@ -22,7 +23,6 @@ export default function Home() {
   const [currentSlug, setCurrentSlug] = useState("");
   const [feedbackGiven, setFeedbackGiven] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [recentQuestions, setRecentQuestions] = useState<{ text: string; slug: string }[]>([]);
   const [conversationHistory, setConversationHistory] = useState<{ question: string; answer: string }[]>([]);
   const [followUp, setFollowUp] = useState("");
   const [familiarityLevel, setFamiliarityLevel] = useState("some");
@@ -37,13 +37,6 @@ export default function Home() {
     return () => { document.body.style.overflow = ""; };
   }, [mobileMenuOpen]);
 
-  // Load recent questions from localStorage on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("nowiget_recent");
-      if (stored) setRecentQuestions(JSON.parse(stored));
-    } catch { /* ignore */ }
-  }, []);
 
   const handleSubmit = () => {
     if (!confusion.trim() || isLoading) return;
@@ -86,16 +79,6 @@ export default function Home() {
         setCurrentSlug(data.slug || "");
         setFeedbackGiven(false);
         setConversationHistory([{ question: confusion.trim(), answer: data.explanation }]);
-        try {
-          const stored = localStorage.getItem("nowiget_recent");
-          const prev: { text: string; slug: string }[] = stored ? JSON.parse(stored) : [];
-          const updated = [
-            { text: confusion.trim(), slug: data.slug || "" },
-            ...prev.filter((q) => q.text !== confusion.trim()),
-          ].slice(0, 5);
-          localStorage.setItem("nowiget_recent", JSON.stringify(updated));
-          setRecentQuestions(updated);
-        } catch { /* ignore */ }
         setTimeout(() => {
           answerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
         }, 100);
@@ -154,9 +137,9 @@ export default function Home() {
             Now<span className="text-primary">I</span>Get
           </a>
           <div className="flex items-center gap-8">
-            <a href="#how-it-works" className="hidden md:block text-sm text-secondary hover:text-foreground transition-colors">How it works</a>
-            <a href="#examples" className="hidden md:block text-sm text-secondary hover:text-foreground transition-colors">Examples</a>
-            <a href="#faq" className="hidden md:block text-sm text-secondary hover:text-foreground transition-colors">FAQ</a>
+            <a href="#how-it-works" className="hidden md:block text-sm nav-link transition-colors">How it works</a>
+            <a href="#examples" className="hidden md:block text-sm nav-link transition-colors">Examples</a>
+            <a href="#faq" className="hidden md:block text-sm nav-link transition-colors">FAQ</a>
             <button className="hidden md:block px-5 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-all duration-200 cursor-pointer hover:shadow-md hover:shadow-primary/20">
               Sign In
             </button>
@@ -173,9 +156,9 @@ export default function Home() {
         </div>
         {mobileMenuOpen && (
           <div className="md:hidden bg-card-bg border-t border-border/50 px-6 py-6 space-y-4">
-            <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block text-base text-secondary hover:text-foreground">How it works</a>
-            <a href="#examples" onClick={() => setMobileMenuOpen(false)} className="block text-base text-secondary hover:text-foreground">Examples</a>
-            <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="block text-base text-secondary hover:text-foreground">FAQ</a>
+            <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block text-base nav-link">How it works</a>
+            <a href="#examples" onClick={() => setMobileMenuOpen(false)} className="block text-base nav-link">Examples</a>
+            <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="block text-base nav-link">FAQ</a>
             <button className="w-full px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-medium cursor-pointer">Sign In</button>
           </div>
         )}
@@ -450,89 +433,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── Recent Questions ─── */}
-      {recentQuestions.length > 0 && (
-        <section className="py-10 px-6 bg-primary-light/20">
-          <div className="max-w-[700px] mx-auto">
-            <p className="text-xs font-semibold text-secondary/50 uppercase tracking-wide mb-4">Your recent questions</p>
-            <div className="flex flex-col gap-2">
-              {recentQuestions.map((q, i) => (
-                <button
-                  key={i}
-                  onClick={() => {
-                    setConfusion(q.text);
-                    setShowFamiliarity(false);
-                    setError("");
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                    setTimeout(() => textareaRef.current?.focus(), 400);
-                  }}
-                  className="flex items-center justify-between gap-4 w-full text-left px-5 py-3.5 rounded-xl bg-card-bg border border-border/40 hover:border-primary/30 hover:shadow-sm transition-all duration-200 group cursor-pointer"
-                >
-                  <span className="text-sm text-foreground truncate">{q.text}</span>
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    {q.slug && (
-                      <a
-                        href={`/explain/${q.slug}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-xs text-primary hover:underline hidden sm:block"
-                      >
-                        View page →
-                      </a>
-                    )}
-                    <span className="text-secondary/30 group-hover:text-primary transition-colors text-sm">↑</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ─── Trust Bar ─── */}
-      <section className="py-12 px-6 border-y border-border/40">
-        <div className="max-w-[1000px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-6">
-          {[
-            {
-              icon: (
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-              ),
-              title: "Powered by Google Gemini AI",
-              desc: "State-of-the-art AI, built by Google",
-            },
-            {
-              icon: (
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              ),
-              title: "No sign-up required",
-              desc: "Just ask — no account, no email",
-            },
-            {
-              icon: (
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              ),
-              title: "Answers in under 10 seconds",
-              desc: "No waiting, no loading screens",
-            },
-            {
-              icon: (
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-              ),
-              title: "Private questions stay private",
-              desc: "Personal questions are never saved or indexed",
-            },
-          ].map(({ icon, title, desc }) => (
-            <div key={title} className="flex flex-col items-center text-center gap-3 px-4 py-6 rounded-2xl bg-card-bg border border-border/40 shadow-sm shadow-foreground/[0.02]">
-              <div className="w-10 h-10 rounded-full bg-primary/8 text-primary flex items-center justify-center flex-shrink-0">
-                {icon}
-              </div>
-              <div>
-                <p className="font-semibold text-foreground text-sm leading-snug">{title}</p>
-                <p className="mt-1 text-xs text-secondary/60 leading-relaxed">{desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* ─── Live Feed ─── */}
+      <LiveFeed />
 
       {/* ─── How It Works ─── */}
       <section id="how-it-works" className="py-24 md:py-32 px-6 scroll-mt-20">
@@ -801,24 +703,23 @@ export default function Home() {
       </section>
 
       {/* ─── Footer ─── */}
-      <footer className="py-14 px-6 bg-footer-bg border-t border-border/40">
+      <footer className="py-14 px-6 border-t border-border/40" style={{backgroundColor:"#EDE8E0"}}>
         <div className="max-w-[1100px] mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="text-center md:text-left">
-              <a href="/" className="text-lg font-bold text-foreground">
+              <a href="/" className="text-lg font-bold" style={{color:"#1A1A1A"}}>
                 Now<span className="text-primary">I</span>Get
               </a>
-              <p className="mt-1 text-sm text-secondary/60">Built for curious minds everywhere.</p>
+              <p className="mt-1 text-sm" style={{color:"#3A3A3A"}}>Built for curious minds everywhere.</p>
             </div>
-            <div className="flex items-center gap-8 text-sm text-secondary/60">
-              <a href="#" className="hover:text-foreground transition-colors">About</a>
-              <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
-              <a href="#" className="hover:text-foreground transition-colors">Terms</a>
-              <a href="#" className="hover:text-foreground transition-colors">Contact</a>
+            <div className="flex items-center gap-8 text-sm font-medium">
+              <a href="/today" style={{color:"#2A2A2A"}} className="hover:text-primary transition-colors">Today</a>
+              <a href="/privacy" style={{color:"#2A2A2A"}} className="hover:text-primary transition-colors">Privacy</a>
+              <a href="/terms" style={{color:"#2A2A2A"}} className="hover:text-primary transition-colors">Terms</a>
             </div>
           </div>
-          <div className="mt-10 pt-6 border-t border-border/30 text-center">
-            <p className="text-xs text-secondary/40">
+          <div className="mt-10 pt-6 border-t border-border/50 text-center">
+            <p className="text-xs" style={{color:"#5A5A5A"}}>
               &copy; {new Date().getFullYear()} Now<span className="text-primary font-semibold">I</span>Get. All rights reserved.
             </p>
           </div>

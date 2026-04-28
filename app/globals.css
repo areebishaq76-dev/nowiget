@@ -36,6 +36,22 @@ body {
   color: var(--foreground);
 }
 
+/* Explicit utility classes for reliable visibility */
+.nav-link {
+  color: #4A4A4A;
+  font-weight: 500;
+}
+.nav-link:hover {
+  color: #1A1A1A;
+}
+.footer-link {
+  color: #6B5B4E;
+  font-weight: 500;
+}
+.footer-link:hover {
+  color: #1A1A1A;
+}
+
 ::selection {
   background-color: var(--primary-light);
   color: var(--foreground);

@@ -5,26 +5,13 @@ export async function POST(request: NextRequest) {
   try {
     const { slug, helpful } = await request.json();
 
-    if (!slug || typeof helpful !== "boolean") {
+    if (!slug || typeof slug !== "string" || typeof helpful !== "boolean") {
       return NextResponse.json({ error: "Invalid request." }, { status: 400 });
     }
 
     const column = helpful ? "helpful_yes" : "helpful_no";
 
-    // Get current value
-    const { data: current } = await supabase
-      .from("explanations")
-      .select("helpful_yes, helpful_no")
-      .eq("slug", slug)
-      .single();
-
-    if (current) {
-      const currentValue = helpful ? current.helpful_yes : current.helpful_no;
-      await supabase
-        .from("explanations")
-        .update({ [column]: (currentValue as number) + 1 })
-        .eq("slug", slug);
-    }
+    await supabase.rpc("increment_feedback", { row_slug: slug, col_name: column });
 
     return NextResponse.json({ success: true });
   } catch {
