@@ -10,6 +10,9 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://nowiget.vercel.app"),
+  verification: {
+    google: "rR5TzwJJ5SaMk6S1jMStfYrHpLDvEtd4zgEGnLQkFZg",
+  },
   title: "NowIGet — Finally Understand Anything",
   description:
     "Describe exactly what you're confused about. Get a clear, human explanation in plain language. No jargon. No textbooks. Just clarity.",
